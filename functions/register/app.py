@@ -2,7 +2,7 @@ import json
 import boto3
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 
 dynamodb = boto3.resource('dynamodb')
@@ -57,7 +57,7 @@ def lambda_handler(event, context):
             'registrationId': registration_id,
             'eventId': event_id,
             'email': email,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat() 
         })
 
         return {

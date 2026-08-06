@@ -1,0 +1,7 @@
+{
+  "eventId": {"S": "evt-001"},
+  "eventName": {"S": "AWS Workshop Accra 2026"},
+  "eventDate": {"S": "2026-05-15"},
+  "capacity": {"N": "50"},
+  "remaining": {"N": "2"}
+}

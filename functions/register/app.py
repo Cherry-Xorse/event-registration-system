@@ -2,12 +2,14 @@ import json
 import boto3
 import os
 import uuid
+import re
 from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 
 dynamodb = boto3.resource('dynamodb')
 events_table = dynamodb.Table(os.environ['EVENTS_TABLE'])
 registrations_table = dynamodb.Table(os.environ['REGISTRATIONS_TABLE'])
+EMAIL_PATTERN = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
 
 def lambda_handler(event, context):
     headers = {
@@ -27,7 +29,8 @@ def lambda_handler(event, context):
                 'headers': headers,
                 'body': json.dumps({'error': 'eventId and email are required'})
             }
-        if '@' not in email or '.' not in email:
+
+        if not EMAIL_PATTERN.match(email):
             return {
                 'statusCode': 400,
                 'headers': headers,

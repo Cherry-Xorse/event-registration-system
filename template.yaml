@@ -123,7 +123,42 @@ Resources:
           Type: Api
           Properties:
             Path: /registration/{id}
-            Method: delete                            
+            Method: delete
+  RegisterFunctionErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Alarm when RegisterFunction error rate exceeds 5%"
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      Metrics:
+        - Id: errorRate
+          Label: ErrorRate
+          Expression: "(errors / invocations) * 100"
+        - Id: errors
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Ref RegisterFunction
+            Period: 300
+            Stat: Sum
+          ReturnData: false
+        - Id: invocations
+          MetricStat:
+            Metric:
+              Namespace: AWS/Lambda
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Ref RegisterFunction
+            Period: 300
+            Stat: Sum
+          ReturnData: false                                      
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM

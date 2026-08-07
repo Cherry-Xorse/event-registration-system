@@ -10,6 +10,7 @@ dynamodb = boto3.resource('dynamodb')
 events_table = dynamodb.Table(os.environ['EVENTS_TABLE'])
 registrations_table = dynamodb.Table(os.environ['REGISTRATIONS_TABLE'])
 EMAIL_PATTERN = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+cloudwatch = boto3.client('cloudwatch')
 
 def lambda_handler(event, context):
     headers = {
@@ -47,6 +48,14 @@ def lambda_handler(event, context):
             )
         except ClientError as e:
             if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                cloudwatch.put_metric_data(
+                    Namespace='EventRegistrationSystem',
+                    MetricData=[{
+                        'MetricName': 'FailedRegistrations',
+                        'Value': 1,
+                        'Unit': 'Count'
+                    }]
+                )
                 return {
                     'statusCode': 409,
                     'headers': headers,

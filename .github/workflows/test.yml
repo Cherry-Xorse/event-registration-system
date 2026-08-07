@@ -1,0 +1,35 @@
+name: Test Lambda Functions
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest boto3 moto
+
+      - name: Run unit tests
+        run: |
+          python -m pytest tests/unit/ -v
+
+      - name: Validate SAM template
+        uses: aws-actions/setup-sam@v2
+
+      - name: Run sam validate
+        run: sam validate --lint

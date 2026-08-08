@@ -68,6 +68,24 @@ Resources:
           Properties:
             Path: /events
             Method: get
+  CreateEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/create_event/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Environment:
+        Variables:
+          EVENTS_TABLE: !Ref EventsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EventsTable
+      Events:
+        CreateEvent:
+          Type: Api
+          Properties:
+            Path: /events
+            Method: post          
   RegisterFunction:
     Type: AWS::Serverless::Function
     Properties:

@@ -36,4 +36,13 @@ manifest_hash = ""
 packagetype = "Zip"
 functions = ["CancelRegistrationFunction"]
 
+[function_build_definitions.413616ff-f12f-4a64-a93d-d21d6d981bc8]
+codeuri = "C:\\Users\\HP\\event-registration-system\\functions\\create_event"
+runtime = "python3.12"
+architecture = "x86_64"
+handler = "app.lambda_handler"
+manifest_hash = ""
+packagetype = "Zip"
+functions = ["CreateEventFunction"]
+
 [layer_build_definitions]

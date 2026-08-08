@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STUB — Event Registration &amp; Ticketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14171F;
+    --paper:#EEF0F5;
+    --card:#FFFFFF;
+    --navy:#1B2340;
+    --gold:#C89B3C;
+    --gold-dark:#A67F2C;
+    --green:#2F7D5C;
+    --green-bg:#E4F2EC;
+    --amber:#C9762A;
+    --amber-bg:#FBEEE0;
+    --red:#B5443A;
+    --red-bg:#F7E7E5;
+    --muted:#6B7280;
+    --line:rgba(20,23,31,0.12);
+    --shadow: 0 1px 2px rgba(20,23,31,0.06), 0 8px 24px -8px rgba(20,23,31,0.18);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--navy);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{ font-family:'poppins', serif; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  a{ color:inherit; }
+  .skip-link{
+    position:absolute; left:-999px; top:0; background:var(--ink); color:#fff;
+    padding:.75rem 1.25rem; z-index:100; border-radius:0 0 8px 0;
+  }
+  .skip-link:focus{ left:0; }
+  :focus-visible{ outline:3px solid var(--gold); outline-offset:2px; }
+
+  .wrap{ max-width:1120px; margin:0 auto; padding:0 1.5rem; }
+
+  /* ---------- Header ---------- */
+  header{
+    background:var(--ink); color:#fff; padding:1.1rem 0;
+  }
+  .header-row{ display:flex; align-items:center; justify-content:space-between; }
+  .brand{ display:flex; align-items:center; gap:.6rem; font-family:'Fraunces',serif; font-weight:700; font-size:1.3rem; letter-spacing:.02em; }
+  .brand-mark{
+    width:28px; height:28px; border-radius:7px; background:var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink); font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:.85rem;
+  }
+  .live-pill{
+    display:flex; align-items:center; gap:.5rem;
+    font-family:'IBM Plex Mono',monospace; font-size:.75rem; letter-spacing:.06em;
+    color:#B9C0D4; text-transform:uppercase;
+  }
+  .live-dot{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px rgba(47,125,92,0.25); }
+
+  /* ---------- Hero ---------- */
+  .hero{ background:var(--ink); color:#fff; padding:3.5rem 0 5rem; }
+  .hero-grid{ display:grid; grid-template-columns:1.05fr 1fr; gap:3.5rem; align-items:start; }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:.78rem; letter-spacing:.12em;
+    color:var(--gold); text-transform:uppercase; margin:0 0 .9rem;
+  }
+  .hero h1{
+    font-size:clamp(2.1rem, 4vw, 3.1rem); line-height:1.08; margin:0 0 1.1rem; font-weight:600;
+  }
+  .hero p.lede{ color:#C4CADE; font-size:1.08rem; line-height:1.6; max-width:34ch; margin:0 0 1.6rem; }
+  .hero-stats{ display:flex; gap:2rem; margin-top:1.8rem; }
+  .hero-stat b{ display:block; font-family:'Fraunces',serif; font-size:1.6rem; font-weight:600; }
+  .hero-stat span{ display:block; font-size:.78rem; color:#9AA2BC; margin-top:.15rem; }
+
+  /* ---------- Ticket form (boarding pass) ---------- */
+  .pass{
+    background:var(--card); color:var(--navy); border-radius:18px;
+    box-shadow: var(--shadow); overflow:hidden; position:relative;
+  }
+  .pass-inner{ display:grid; grid-template-columns:1fr 84px; }
+  .pass-main{ padding:1.7rem 1.6rem; }
+  .pass-main h2{ font-family:'Fraunces',serif; font-size:1.25rem; margin:0 0 .2rem; font-weight:600; }
+  .pass-main .sub{ font-size:.85rem; color:var(--muted); margin:0 0 1.3rem; }
+  .field{ margin-bottom:1.05rem; }
+  .field label{
+    display:block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:.4rem; font-weight:600;
+  }
+  .field select, .field input{
+    width:100%; padding:.7rem .8rem; border-radius:9px; border:1.5px solid var(--line);
+    font-family:'Inter',sans-serif; font-size:.95rem; color:var(--navy); background:#fff;
+  }
+  .field select:focus, .field input:focus{ border-color:var(--gold); }
+  .btn{
+    appearance:none; border:none; cursor:pointer; border-radius:9px;
+    font-family:'Inter',sans-serif; font-weight:600; font-size:.95rem;
+    padding:.8rem 1.2rem; width:100%;
+    background:var(--gold); color:var(--ink);
+    transition:transform .12s ease, background .12s ease;
+  }
+  .btn:hover{ background:var(--gold-dark); }
+  .btn:active{ transform:scale(0.98); }
+  .btn:disabled{ opacity:.55; cursor:not-allowed; }
+  .btn-ghost{ background:transparent; border:1.5px solid var(--line); color:var(--navy); }
+  .btn-ghost:hover{ background:var(--paper); }
+  .btn-sm{ width:auto; padding:.5rem .9rem; font-size:.82rem; }
+  .btn-danger{ background:var(--red-bg); color:var(--red); }
+  .btn-danger:hover{ background:#f0d5d2; }
+
+  .pass-stub{
+    background:var(--ink); color:#fff; border-left:2px dashed rgba(255,255,255,0.25);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6rem;
+    padding:1rem 0;
+  }
+  .pass-stub .vert{
+    writing-mode:vertical-rl; transform:rotate(180deg);
+    font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.18em;
+    color:var(--gold); text-transform:uppercase;
+  }
+  .pass-inner::before, .pass-inner::after{
+    content:""; position:absolute; left:calc(100% - 84px); width:22px; height:22px;
+    background:var(--paper); border-radius:50%; transform:translate(-50%,-50%); z-index:2;
+  }
+  .pass-inner::before{ top:0; }
+  .pass-inner::after{ top:100%; }
+
+  .form-msg{ font-size:.85rem; margin-top:.9rem; padding:.7rem .8rem; border-radius:8px; display:none; }
+  .form-msg.show{ display:block; }
+  .form-msg.ok{ background:var(--green-bg); color:var(--green); }
+  .form-msg.err{ background:var(--red-bg); color:var(--red); }
+
+  /* ---------- Sections ---------- */
+  section.block{ padding:3.5rem 0; }
+  .block-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.8rem; flex-wrap:wrap; gap:.6rem; }
+  .block-head h2{ font-family:'Fraunces',serif; font-size:1.7rem; margin:0; font-weight:600; }
+  .block-head p{ margin:.3rem 0 0; color:var(--muted); font-size:.92rem; }
+  .refresh-link{ font-size:.82rem; color:var(--muted); text-decoration:underline; cursor:pointer; background:none; border:none; font-family:'Inter',sans-serif; }
+  .refresh-link:hover{ color:var(--navy); }
+
+  /* ---------- Ticket cards (events) ---------- */
+  .ticket-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:1.4rem; }
+  .ticket{
+    position:relative; background:var(--card); border-radius:16px; box-shadow:var(--shadow);
+    display:grid; grid-template-columns:1fr 92px; overflow:visible;
+  }
+  .ticket::before, .ticket::after{
+    content:""; position:absolute; left:calc(100% - 92px); width:22px; height:22px;
+    background:var(--paper); border-radius:50%; transform:translate(-50%,-50%); z-index:2;
+  }
+  .ticket::before{ top:0; }
+  .ticket::after{ top:100%; }
+  .ticket-main{ padding:1.5rem 1.4rem; }
+  .ticket-eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:.68rem; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; margin:0 0 .5rem; }
+  .ticket-main h3{ font-family:'Fraunces',serif; font-size:1.18rem; margin:0 0 .35rem; font-weight:600; line-height:1.25; }
+  .ticket-date{ font-size:.85rem; color:var(--muted); margin:0 0 .9rem; }
+  .ticket-cap{ font-size:.82rem; color:var(--navy); }
+  .ticket-cap b{ font-family:'IBM Plex Mono',monospace; }
+  .capacity-bar{ height:5px; border-radius:3px; background:var(--paper); margin-top:.5rem; overflow:hidden; }
+  .capacity-fill{ height:100%; border-radius:3px; background:var(--gold); }
+
+  .ticket-stub{
+    border-left:2px dashed var(--line); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:.55rem; padding:1rem .4rem;
+  }
+  .status-tag{
+    font-family:'IBM Plex Mono',monospace; font-size:.68rem; letter-spacing:.1em;
+    writing-mode:vertical-rl; transform:rotate(180deg); text-transform:uppercase; font-weight:600;
+    padding:.4rem .25rem; border-radius:5px;
+  }
+  .status-available{ color:var(--green); }
+  .status-limited{ color:var(--amber); }
+  .status-soldout{ color:var(--red); }
+  .stub-code{ font-family:'IBM Plex Mono',monospace; font-size:.68rem; color:var(--muted); writing-mode:vertical-rl; transform:rotate(180deg); }
+
+  /* ---------- My tickets ---------- */
+  .lookup-row{ display:flex; gap:.7rem; max-width:520px; margin-bottom:1.6rem; }
+  .lookup-row input{ flex:1; padding:.75rem .9rem; border-radius:9px; border:1.5px solid var(--line); font-family:'Inter',sans-serif; font-size:.95rem; }
+  .lookup-row input:focus{ border-color:var(--gold); }
+  .reg-list{ display:flex; flex-direction:column; gap:.8rem; }
+  .reg-row{
+    background:var(--card); border-radius:12px; box-shadow:var(--shadow);
+    padding:1rem 1.2rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  }
+  .reg-row .info b{ font-family:'Fraunces',serif; font-weight:600; }
+  .reg-row .info span{ display:block; font-size:.78rem; color:var(--muted); margin-top:.15rem; font-family:'IBM Plex Mono',monospace; }
+  .empty-note{ color:var(--muted); font-size:.9rem; padding:1.2rem 0; }
+
+  footer{ background:var(--ink); color:#8B93AC; padding:2.2rem 0; font-size:.82rem; }
+  footer .wrap{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem; }
+  footer a{ text-decoration:underline; }
+
+  @media (max-width:820px){
+    .hero-grid{ grid-template-columns:1fr; gap:2.2rem; }
+    .pass-inner{ grid-template-columns:1fr 64px; }
+    .pass-inner::before, .pass-inner::after{ left:calc(100% - 64px); }
+    .ticket{ grid-template-columns:1fr 64px; }
+    .ticket::before, .ticket::after{ left:calc(100% - 64px); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; scroll-behavior:auto !important; }
+  }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to content</a>
+
+<header>
+  <div class="wrap header-row">
+    <div class="brand"><span class="brand-mark">S</span>STUB</div>
+    <div class="live-pill"><span class="live-dot"></span>API Live · us-east-1</div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">Event Registration &amp; Ticketing</p>
+      <h1 class="display">Grab your spot before the gate closes.</h1>
+      <p class="lede">A serverless registration system built on AWS Lambda, API Gateway, and DynamoDB — every ticket is issued in real time, with no risk of overselling a single seat.</p>
+      <div class="hero-stats">
+        <div class="hero-stat"><b id="stat-events">—</b><span>Events open</span></div>
+        <div class="hero-stat"><b id="stat-spots">—</b><span>Spots remaining</span></div>
+        <div class="hero-stat"><b>&lt;100ms</b><span>Avg. Lambda response</span></div>
+      </div>
+    </div>
+
+    <form class="pass" id="register-form" novalidate>
+      <div class="pass-inner">
+        <div class="pass-main">
+          <h2>Reserve your seat</h2>
+          <p class="sub">One ticket per email, per event.</p>
+
+          <div class="field">
+            <label for="event-select">Event</label>
+            <select id="event-select" required>
+              <option value="" disabled selected>Loading events…</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="email-input">Email address</label>
+            <input type="email" id="email-input" placeholder="you@example.com" required>
+          </div>
+
+          <button class="btn" type="submit" id="register-btn">Get my ticket</button>
+          <div class="form-msg" id="register-msg"></div>
+        </div>
+        <div class="pass-stub">
+          <span class="vert">Admit One</span>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+
+<main id="main">
+  <section class="block wrap">
+    <div class="block-head">
+      <div>
+        <h2>Available events</h2>
+        <p>Live capacity, pulled straight from DynamoDB.</p>
+      </div>
+      <button class="refresh-link" id="refresh-events">Refresh</button>
+    </div>
+    <div class="ticket-grid" id="events-grid">
+      <p class="empty-note">Loading events…</p>
+    </div>
+  </section>
+
+  <section class="block wrap" style="padding-top:0;">
+    <div class="block-head">
+      <div>
+        <h2>Manage your tickets</h2>
+        <p>Look up everything registered under your email.</p>
+      </div>
+    </div>
+    <div class="lookup-row">
+      <input type="email" id="lookup-email" placeholder="you@example.com">
+      <button class="btn btn-ghost btn-sm" id="lookup-btn" style="width:auto;">Find my tickets</button>
+    </div>
+    <div class="reg-list" id="reg-list"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>STUB — a serverless capstone project · AWS SAM, Lambda, API Gateway, DynamoDB, CloudWatch</span>
+    <span>Built by Cherry Xorse Azanu</span>
+  </div>
+</footer>
+
+<script>
+  // ---- Configuration ----
+  const API_BASE = "https://677qga8icb.execute-api.us-east-1.amazonaws.com/Prod";
+
+  const eventsGrid = document.getElementById("events-grid");
+  const eventSelect = document.getElementById("event-select");
+  const registerForm = document.getElementById("register-form");
+  const registerBtn = document.getElementById("register-btn");
+  const registerMsg = document.getElementById("register-msg");
+  const statEvents = document.getElementById("stat-events");
+  const statSpots = document.getElementById("stat-spots");
+  const regList = document.getElementById("reg-list");
+
+  let eventsCache = [];
+
+  function statusFor(ev) {
+    if (ev.remaining <= 0) return { key: "soldout", label: "Sold Out" };
+    if (ev.remaining <= Math.max(2, Math.ceil(ev.capacity * 0.15))) return { key: "limited", label: "Limited" };
+    return { key: "available", label: "Available" };
+  }
+
+  function formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      if (isNaN(d)) return iso;
+      return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    } catch (e) { return iso; }
+  }
+
+  async function loadEvents() {
+    eventsGrid.innerHTML = '<p class="empty-note">Loading events…</p>';
+    try {
+      const res = await fetch(`${API_BASE}/events`);
+      const data = await res.json();
+      eventsCache = Array.isArray(data) ? data : [];
+      renderEvents();
+      renderSelect();
+      renderStats();
+    } catch (err) {
+      eventsGrid.innerHTML = '<p class="empty-note">Couldn\'t load events right now. Try refreshing.</p>';
+    }
+  }
+
+  function renderStats() {
+    statEvents.textContent = eventsCache.length;
+    const totalRemaining = eventsCache.reduce((sum, e) => sum + (Number(e.remaining) || 0), 0);
+    statSpots.textContent = totalRemaining;
+  }
+
+  function renderSelect() {
+    if (eventsCache.length === 0) {
+      eventSelect.innerHTML = '<option value="" disabled selected>No events available</option>';
+      return;
+    }
+    eventSelect.innerHTML = eventsCache.map(ev => {
+      const soldOut = ev.remaining <= 0;
+      return `<option value="${ev.eventId}" ${soldOut ? "disabled" : ""}>${ev.eventName}${soldOut ? " — Sold Out" : ""}</option>`;
+    }).join("");
+  }
+
+  function renderEvents() {
+    if (eventsCache.length === 0) {
+      eventsGrid.innerHTML = '<p class="empty-note">No events are open for registration right now.</p>';
+      return;
+    }
+    eventsGrid.innerHTML = eventsCache.map(ev => {
+      const status = statusFor(ev);
+      const pct = ev.capacity > 0 ? Math.max(4, Math.round((ev.remaining / ev.capacity) * 100)) : 0;
+      return `
+        <div class="ticket">
+          <div class="ticket-main">
+            <p class="ticket-eyebrow">${ev.eventId}</p>
+            <h3>${ev.eventName}</h3>
+            <p class="ticket-date">${formatDate(ev.eventDate)}</p>
+            <p class="ticket-cap"><b>${ev.remaining}</b> of ${ev.capacity} spots left</p>
+            <div class="capacity-bar"><div class="capacity-fill" style="width:${pct}%;"></div></div>
+          </div>
+          <div class="ticket-stub">
+            <span class="status-tag status-${status.key}">${status.label}</span>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function showMsg(el, text, ok) {
+    el.textContent = text;
+    el.className = "form-msg show " + (ok ? "ok" : "err");
+  }
+
+  registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const eventId = eventSelect.value;
+    const email = document.getElementById("email-input").value.trim();
+    if (!eventId || !email) return;
+
+    registerBtn.disabled = true;
+    registerBtn.textContent = "Issuing ticket…";
+    registerMsg.className = "form-msg";
+
+    try {
+      const res = await fetch(`${API_BASE}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId, email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg(registerMsg, `Ticket confirmed — ref ${data.registrationId.slice(0, 8)}`, true);
+        registerForm.reset();
+        loadEvents();
+      } else {
+        showMsg(registerMsg, data.error || "Registration failed. Please try again.", false);
+      }
+    } catch (err) {
+      showMsg(registerMsg, "Network error — please try again.", false);
+    } finally {
+      registerBtn.disabled = false;
+      registerBtn.textContent = "Get my ticket";
+    }
+  });
+
+  document.getElementById("refresh-events").addEventListener("click", loadEvents);
+
+  document.getElementById("lookup-btn").addEventListener("click", async () => {
+    const email = document.getElementById("lookup-email").value.trim();
+    if (!email) return;
+    regList.innerHTML = '<p class="empty-note">Looking up your tickets…</p>';
+    try {
+      const res = await fetch(`${API_BASE}/registrations/${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        regList.innerHTML = '<p class="empty-note">No tickets found for that email.</p>';
+        return;
+      }
+      regList.innerHTML = data.map(r => {
+        const ev = eventsCache.find(e => e.eventId === r.eventId);
+        const name = ev ? ev.eventName : r.eventId;
+        return `
+          <div class="reg-row" data-id="${r.registrationId}">
+            <div class="info">
+              <b>${name}</b>
+              <span>REF ${r.registrationId}</span>
+            </div>
+            <button class="btn btn-danger btn-sm cancel-btn" data-id="${r.registrationId}">Cancel ticket</button>
+          </div>`;
+      }).join("");
+    } catch (err) {
+      regList.innerHTML = '<p class="empty-note">Couldn\'t load tickets right now.</p>';
+    }
+  });
+
+  regList.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".cancel-btn");
+    if (!btn) return;
+    const id = btn.dataset.id;
+    btn.disabled = true;
+    btn.textContent = "Cancelling…";
+    try {
+      const res = await fetch(`${API_BASE}/registration/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        btn.closest(".reg-row").remove();
+        loadEvents();
+      } else {
+        btn.disabled = false;
+        btn.textContent = "Cancel ticket";
+      }
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Cancel ticket";
+    }
+  });
+
+  loadEvents();
+</script>
+</body>
+</html>

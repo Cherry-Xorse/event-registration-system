@@ -34,7 +34,7 @@
     font-family:'Inter',sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .display{ font-family:'poppins', serif; }
+  .display{ font-family:'Fraunces', serif; }
   .mono{ font-family:'IBM Plex Mono', monospace; }
 
   a{ color:inherit; }
@@ -279,6 +279,38 @@
   <section class="block wrap" style="padding-top:0;">
     <div class="block-head">
       <div>
+        <h2>Add a new event</h2>
+        <p>Opens a fresh event for registration, starting at full capacity.</p>
+      </div>
+    </div>
+    <form class="pass" id="create-event-form" style="max-width:640px;">
+      <div class="pass-inner">
+        <div class="pass-main">
+          <div class="field">
+            <label for="new-event-name">Event name</label>
+            <input type="text" id="new-event-name" placeholder="e.g. Cloud Solutions Summit" required>
+          </div>
+          <div class="field">
+            <label for="new-event-date">Date</label>
+            <input type="date" id="new-event-date" required>
+          </div>
+          <div class="field">
+            <label for="new-event-capacity">Capacity</label>
+            <input type="number" id="new-event-capacity" min="1" placeholder="e.g. 30" required>
+          </div>
+          <button class="btn btn-ghost" type="submit" id="create-event-btn">Publish event</button>
+          <div class="form-msg" id="create-event-msg"></div>
+        </div>
+        <div class="pass-stub">
+          <span class="vert">New Event</span>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section class="block wrap" style="padding-top:0;">
+    <div class="block-head">
+      <div>
         <h2>Manage your tickets</h2>
         <p>Look up everything registered under your email.</p>
       </div>
@@ -420,6 +452,43 @@
   });
 
   document.getElementById("refresh-events").addEventListener("click", loadEvents);
+
+  const createEventForm = document.getElementById("create-event-form");
+  const createEventBtn = document.getElementById("create-event-btn");
+  const createEventMsg = document.getElementById("create-event-msg");
+
+  createEventForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const eventName = document.getElementById("new-event-name").value.trim();
+    const eventDate = document.getElementById("new-event-date").value;
+    const capacity = document.getElementById("new-event-capacity").value;
+    if (!eventName || !eventDate || !capacity) return;
+
+    createEventBtn.disabled = true;
+    createEventBtn.textContent = "Publishing…";
+    createEventMsg.className = "form-msg";
+
+    try {
+      const res = await fetch(`${API_BASE}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventName, eventDate, capacity: Number(capacity) }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg(createEventMsg, `"${data.eventName}" is live with ${data.capacity} spots.`, true);
+        createEventForm.reset();
+        loadEvents();
+      } else {
+        showMsg(createEventMsg, data.error || "Couldn't create the event.", false);
+      }
+    } catch (err) {
+      showMsg(createEventMsg, "Network error — please try again.", false);
+    } finally {
+      createEventBtn.disabled = false;
+      createEventBtn.textContent = "Publish event";
+    }
+  });
 
   document.getElementById("lookup-btn").addEventListener("click", async () => {
     const email = document.getElementById("lookup-email").value.trim();

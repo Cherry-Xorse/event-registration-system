@@ -1,132 +1,185 @@
-# event-registration-system
+# Event Registration & Ticketing System
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+A serverless REST API built on AWS, replacing a manual Microsoft Forms + Excel workflow with a scalable, race-condition-safe event registration system.
 
-- hello_world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+**Live API:** `https://677qga8icb.execute-api.us-east-1.amazonaws.com/Prod/`
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+---
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+## Problem
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+The original process for managing event registrations relied on Microsoft Forms feeding into an Excel sheet — no real-time capacity tracking, no protection against overselling a limited-capacity event, and no way to programmatically query or cancel registrations. This project replaces that with a serverless REST API that handles registration, capacity enforcement, and cancellation automatically and safely, even under concurrent load.
 
-## Deploy the sample application
+---
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+## Architecture
 
-To use the SAM CLI, you need the following tools.
+```
+Client
+  │
+  ▼
+API Gateway (REST endpoints)
+  │
+  ▼
+AWS Lambda (business logic, Python 3.12)
+  │
+  ▼
+DynamoDB (Events, Registrations)
+  │
+  ├── CloudWatch (Logs, Alarms, Custom Metrics)
+  ├── AWS Budgets (cost tracking)
+  └── IAM (least-privilege, per-function roles)
+```
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* [Python 3 installed](https://www.python.org/downloads/)
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
+**Services used:**
+| Service | Purpose |
+|---|---|
+| AWS SAM | Infrastructure as Code — defines every resource in `template.yaml` |
+| AWS Lambda | Business logic for each endpoint (Python 3.12) |
+| Amazon API Gateway | REST API routing |
+| Amazon DynamoDB | Storage for events and registrations |
+| Amazon CloudWatch | Logs, alarms, and custom application metrics |
+| AWS Budgets | Cost tracking, alerts at 80% of budget |
+| AWS IAM | Per-function, least-privilege permissions |
+| GitHub Actions | CI — automated testing on every push |
 
-To build and deploy your application for the first time, run the following in your shell:
+---
+
+## API Reference
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/register` | Register for an event (body: `eventId`, `email`) |
+| `GET` | `/events` | List all events |
+| `GET` | `/registrations/{email}` | View a person's registrations |
+| `DELETE` | `/registration/{id}` | Cancel a registration |
+
+### Example: Register for an event
+```bash
+curl -X POST https://677qga8icb.execute-api.us-east-1.amazonaws.com/Prod/register \
+  -H "Content-Type: application/json" \
+  -d '{"eventId": "evt-001", "email": "you@example.com"}'
+```
+
+---
+
+## Data Model
+
+**Events table** — partition key: `eventId`
+| Field | Type | Description |
+|---|---|---|
+| eventId | String | Unique event identifier |
+| eventName | String | Display name |
+| eventDate | String | ISO date |
+| capacity | Number | Total capacity |
+| remaining | Number | Spots remaining — drives availability status |
+
+**Registrations table** — partition key: `registrationId`, GSI: `EmailIndex` (on `email`)
+| Field | Type | Description |
+|---|---|---|
+| registrationId | String | Unique registration ID |
+| eventId | String | Which event |
+| email | String | Registrant's email |
+| timestamp | String | ISO 8601 UTC timestamp |
+
+Two separate tables were used rather than one, since events and registrations are distinct entities with different lifecycles — one event can have many registrations, and merging them would duplicate event data across every row.
+
+---
+
+## Key Design Decisions
+
+**Atomic capacity checks.** The `/register` endpoint uses a DynamoDB `ConditionExpression` (`remaining > 0`) on the update that decrements capacity, rather than a read-then-write pattern. This guarantees that two people registering for the last spot at the same instant can never both succeed — DynamoDB evaluates the condition and performs the write as a single atomic operation, preventing overselling.
+
+**GSI for email lookups.** `GET /registrations/{email}` needs to search by email rather than the table's primary key. Rather than scanning the entire table (slow, expensive, doesn't scale), a Global Secondary Index (`EmailIndex`) allows a direct, efficient query.
+
+**Least-privilege IAM per function.** Each Lambda has its own auto-generated IAM role, scoped only to the specific DynamoDB tables (and specific actions) it actually needs. `ListEventsFunction` can only read `Events`; it has no access to `Registrations` or any other AWS resource. This limits the blast radius if any single function were ever compromised.
+
+**No authentication on the API.** The API is intentionally public, matching its use case as a self-service registration form (replacing a public-facing Microsoft Form). See [Security Considerations](#security-considerations) below for what was considered instead.
+
+---
+
+## Monitoring & Observability
+
+- **CloudWatch Logs** — structured JSON logging enabled for all 4 Lambda functions, with 14-day retention policies applied to control storage costs over time.
+- **CloudWatch Alarm** — monitors `RegisterFunction`'s error rate using a math expression (`errors / invocations * 100`) and fires if it exceeds 5%.
+- **Custom metric — `FailedRegistrations`** — a business-level metric (not just Lambda's built-in `Errors`) tracking how often registrations are rejected due to sold-out events, published via `cloudwatch:PutMetricData`.
+- **AWS Budgets** — a monthly cost budget with an alert at 80% utilization, keeping spend within Free Tier expectations.
+
+---
+
+## Security Considerations
+
+This API is intentionally public and unauthenticated, matching the project's use case: a self-service event registration form, similar to the Microsoft Forms it replaces. Several security patterns were considered:
+
+- **API Gateway usage plans + API keys** — would throttle/meter usage per client; more relevant if this API were consumed by third-party integrators rather than end users filling out a form.
+- **AWS WAF** — could block common attack patterns (rate-based abuse, bot traffic) in front of API Gateway. A reasonable next step for a production deployment, outside this capstone's free-tier scope.
+- **Input validation and sanitization** — implemented directly in each Lambda: required-field checks, regex email validation, and DynamoDB `ConditionExpression`s used to enforce business rules server-side rather than trusting the client.
+- **Least-privilege IAM** — see above.
+- **CORS** — configured permissively (`*`) since this is a public form; a stricter origin allowlist would suit a deployment behind one known frontend domain.
+
+The overall approach favors application-layer defenses (validation, atomic operations, scoped permissions) over network-layer restrictions, since the API is meant to be openly accessible by design.
+
+---
+
+## CI/CD
+
+GitHub Actions runs on every push and pull request to `main` and `dev`:
+1. Installs dependencies (`pytest`, `boto3`, `moto`)
+2. Runs the full unit test suite (12 tests, using `moto` to mock AWS — no real credentials or costs involved)
+3. Validates the SAM template (`sam validate --lint`)
+
+Development follows a branch-based workflow: work happens on `dev`, then merges into `main` via reviewed pull requests.
+
+---
+
+## Testing
+
+12 unit tests across all 4 Lambda functions, using `moto` to mock DynamoDB so tests run fast, free, and without touching real AWS:
 
 ```bash
-sam build --use-container
+pip install pytest boto3 moto --break-system-packages
+python -m pytest tests/unit/ -v
+```
+
+Coverage includes the happy path for every endpoint, input validation failures, and — critically — the sold-out/race-condition rejection path for registration.
+
+---
+
+## Setup & Deployment
+
+**Prerequisites:** AWS account, AWS CLI, AWS SAM CLI, Python 3.12, Docker Desktop (for local testing)
+
+```bash
+# Configure AWS credentials
+aws configure
+
+# Clone and enter the project
+git clone https://github.com/Cherry-Xorse/event-registration-system.git
+cd event-registration-system
+
+# Build and deploy
+sam build
 sam deploy --guided
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
-
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
-
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
-
-## Use the SAM CLI to build and test locally
-
-Build your application with the `sam build --use-container` command.
-
+**Local testing** (requires Docker Desktop running):
 ```bash
-event-registration-system$ sam build --use-container
+sam local start-api --warm-containers LAZY
 ```
 
-The SAM CLI installs dependencies defined in `hello_world/requirements.txt`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+---
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+## Challenges Faced
 
-Run functions locally and invoke them with the `sam local invoke` command.
+- **DynamoDB `Decimal` serialization.** Python's `json.dumps()` can't natively serialize the `Decimal` type DynamoDB returns for numeric fields. Solved with a custom `JSONEncoder`.
+- **Race conditions on capacity.** Solved using DynamoDB's `ConditionExpression` for atomic, race-safe updates rather than a vulnerable read-then-write pattern.
+- **PowerShell vs. real curl.** Windows PowerShell aliases `curl` to `Invoke-WebRequest`, which doesn't support standard curl flags — resolved by calling `curl.exe` explicitly.
+- **A live GitHub-wide Actions outage** (Aug 6, 2026) caused workflow runs to hang indefinitely in "Queued." Confirmed via githubstatus.com rather than assuming a config error, and continued other work until GitHub's infrastructure recovered.
+- **A silent logic bug** — a missing `return` statement in email validation meant invalid emails passed through unnoticed since Python didn't raise an error, just discarded an unused dictionary. Caught during a deliberate least-privilege/validation review, a good reminder that code needs active auditing beyond "it didn't crash."
+- **Invalid CloudFormation property** — `LoggingConfig` was mistakenly added under `Globals: Api` (only valid under `Globals: Function`), which silently didn't block `sam deploy` for several cycles until `sam build` was run directly and caught it.
 
-```bash
-event-registration-system$ sam local invoke HelloWorldFunction --event events/event.json
-```
+---
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+## Author
 
-```bash
-event-registration-system$ sam local start-api
-event-registration-system$ curl http://localhost:3000/
-```
-
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
-
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
-
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
-
-```bash
-event-registration-system$ sam logs -n HelloWorldFunction --stack-name "event-registration-system" --tail
-```
-
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Tests
-
-Tests are defined in the `tests` folder in this project. Use PIP to install the test dependencies and run tests.
-
-```bash
-event-registration-system$ pip install -r tests/requirements.txt --user
-# unit test
-event-registration-system$ python -m pytest tests/unit -v
-# integration test, requiring deploying the stack first.
-# Create the env variable AWS_SAM_STACK_NAME with the name of the stack we are testing
-event-registration-system$ AWS_SAM_STACK_NAME="event-registration-system" python -m pytest tests/integration -v
-```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
-```bash
-sam delete --stack-name "event-registration-system"
-```
-
-## Resources
-
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
-#   e v e n t - r e g i s t r a t i o n - s y s t e m  
- 
+Cherry Xorse Azanu — AWS Cloud Engineering Programme, Azubi Africa
